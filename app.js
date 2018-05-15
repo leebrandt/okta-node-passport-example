@@ -41,11 +41,7 @@ passport.use(new OidcStrategy({
   callbackURL: 'http://localhost:3000/authorization-code/callback',
   scope: 'openid profile'
 },
-function(accessToken, refreshToken, profile, cb){
-  User.findOrCreate({exampleId: profile.id}, function(err, user){
-    return cb(err, user);
-  })
-}))
+function(){}))
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
