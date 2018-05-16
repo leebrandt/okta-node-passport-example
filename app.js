@@ -1,10 +1,8 @@
 var createError = require('http-errors');
 var express = require('express');
-var request = require('request');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
-var flash = require('flash');
 var session = require('express-session');
 var passport = require('passport');
 var OidcStrategy = require('passport-openidconnect').Strategy;
@@ -27,10 +25,8 @@ app.use(session({
   secret: 'werfghnjmlpouhyf',
   resave: false,
   saveUninitialized: true,
-  cookie: { maxAge: 60000 }
+  cookie: { maxAge: 60000, secure: true }
 }));
-app.use(flash());
-
 
 // use passport session
 app.use(passport.initialize());
