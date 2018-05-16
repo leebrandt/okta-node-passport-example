@@ -3,6 +3,7 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
+var flash = require('flash');
 var session = require('express-session');
 var passport = require('passport');
 var OidcStrategy = require('passport-openidconnect').Strategy;
@@ -25,47 +26,80 @@ app.use(session({
   secret: 'werfghnjmlpouhyf',
   resave: false,
   saveUninitialized: true,
-  cookie: { secure: true }
-}))
+  cookie: { maxAge: 60000 }
+}));
+app.use(flash());
+
+
 // use passport session
 app.use(passport.initialize());
 app.use(passport.session());
-  
+
 // set up passport
-passport.use(new OidcStrategy({
+passport.use('oidc', new OidcStrategy({
   issuer: 'https://dev-846291.oktapreview.com/oauth2/default',
   authorizationURL: 'https://dev-846291.oktapreview.com/oauth2/default/v1/authorize',
   tokenURL: 'https://dev-846291.oktapreview.com/oauth2/default/v1/token',
+  userInfoURL: 'https://dev-846291.oktapreview.com/oauth2/default/v1/userinfo',
   clientID: '0oaf1pgbxb57crsxr0h7',
   clientSecret: 'te0cHOYl-MqyilntFc478XFtYCGkbZ2lWheM-GH2',
   callbackURL: 'http://localhost:3000/authorization-code/callback',
+  logoutURL: 'http://localhost:3000/logout/callback',
   scope: 'openid profile'
-},
-function(){}))
+}, (issuer, sub, profile, accessToken, refreshToken, done) => {
+  return done(null, profile);
+}));
+
+passport.serializeUser((user, next) => {
+  next(null, user);
+});
+
+passport.deserializeUser((obj, next) => {
+  next(null, obj);
+})
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 
-app.get('/auth/example', passport.authenticate('openidconnect'));
+function ensureLoggedIn(req, res, next) {
+  if (req.isAuthenticated()) {
+    return next();
+  }
 
-app.get('/authorization-code/callback', 
-  passport.authenticate('openidconnect', {failureRedirect: '/login/failure'}),
-  function(req,res){
-    res.redirect('/');
+  res.redirect('/login')
+}
+
+app.use('/profile', ensureLoggedIn, (req, res) => {
+  res.render('profile', { title: 'Express', user: req.user });
+});
+
+app.use('/login', passport.authenticate('oidc'));
+
+app.use('/authorization-code/callback',
+  passport.authenticate('oidc', { failureRedirect: '/error' }),
+  (req, res) => {
+    res.redirect('/profile');
   }
 );
 
-app.get('/login/failure', (req,res)=>{
-  res.status(500).send("Unable to login");
+app.use('/logout/callback', (req,res)=>{
+  req.logout();
+  res.redirect('/');
 })
 
+app.get('/logout', (req, res) => {
+  return OidcStrategy.logout(req, function(err, uri){
+    return res.redirect(uri);
+  });
+});
+
 // catch 404 and forward to error handler
-app.use(function(req, res, next) {
+app.use(function (req, res, next) {
   next(createError(404));
 });
 
 // error handler
-app.use(function(err, req, res, next) {
+app.use(function (err, req, res, next) {
   // set locals, only providing error in development
   res.locals.message = err.message;
   res.locals.error = req.app.get('env') === 'development' ? err : {};
