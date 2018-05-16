@@ -1,5 +1,6 @@
 var createError = require('http-errors');
 var express = require('express');
+var request = require('request');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
@@ -44,7 +45,6 @@ passport.use('oidc', new OidcStrategy({
   clientID: '0oaf1pgbxb57crsxr0h7',
   clientSecret: 'te0cHOYl-MqyilntFc478XFtYCGkbZ2lWheM-GH2',
   callbackURL: 'http://localhost:3000/authorization-code/callback',
-  logoutURL: 'http://localhost:3000/logout/callback',
   scope: 'openid profile'
 }, (issuer, sub, profile, accessToken, refreshToken, done) => {
   return done(null, profile);
@@ -82,15 +82,10 @@ app.use('/authorization-code/callback',
   }
 );
 
-app.use('/logout/callback', (req,res)=>{
-  req.logout();
-  res.redirect('/');
-})
-
 app.get('/logout', (req, res) => {
-  return OidcStrategy.logout(req, function(err, uri){
-    return res.redirect(uri);
-  });
+  req.logout();
+  req.session.destroy();
+  res.redirect('/');
 });
 
 // catch 404 and forward to error handler
